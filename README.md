@@ -1,5 +1,5 @@
 # AI-Powered Lecture Intelligence Tool 🎓
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Akarshkushwaha/AI-Lecture-Intelligence-Tool/blob/main/Copy_of_Updated_Lecture_Intelligence_Tool.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Akarshkushwaha/AI-Lecture-Intelligence-Tool/blob/main/Lecture_Intelligence_Tool.ipynb)
 
 ## Overview
 This tool converts video lectures into concise, study-ready notes. It utilizes advanced NLP models to transcribe audio, summarize content, and extract key takeaways, helping students save time and improve retention.
