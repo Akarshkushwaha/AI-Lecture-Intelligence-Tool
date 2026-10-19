@@ -60,9 +60,12 @@ NER currently processes the first 100,000 characters; KeyBERT's document embeddi
 is limited by its encoder's context window. QA retrieves a subset of the transcript.
 
 `app.py` launches the UI; `study_mitra.py` contains the shared pipeline and callbacks.
-The Colab notebook clones the repository and imports that same implementation,
-so local and Colab behavior stays aligned. An existing Colab clone is reused;
-update it explicitly with `git pull` when you want newer code.
+The Colab notebook contains the full implementation in separate, readable cells:
+setup, configuration, audio extraction, transcription, summaries, keywords, Q&A,
+translation, evaluation, Gradio compatibility, UI, and launch. It can run without
+cloning the repository or importing `study_mitra.py`.
+After editing the Python implementation or requirements, run `python sync_notebook.py`
+to update the notebook's code cells and embedded installation requirements.
 
 ## Checks
 
