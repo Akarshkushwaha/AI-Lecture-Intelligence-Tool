@@ -1,22 +1,76 @@
-# AI-Powered Lecture Intelligence Tool 🎓
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1lcPhY9LW9Nry39A80OuwzJT6cTPfrxLW?usp=sharing)
+# StudyMitra.ai — AI-Powered Lecture Intelligence 🎓
 
-## Overview
-This tool converts video lectures into concise, study-ready notes. It utilizes advanced NLP models to transcribe audio, summarize content, and extract key takeaways, helping students save time and improve retention.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Akarshkushwaha/AI-Lecture-Intelligence-Tool/blob/main/lecture-intelligence-tool.ipynb)
 
-## Features
-* **Video Transcription:** Uses OpenAI's `Whisper` (via Faster-Whisper) for high-accuracy speech-to-text.
-* **Intelligent Summarization:** Uses Hugging Face Transformers to condense transcripts into abstractive summaries.
-* **Keyword Extraction:** Identifies core concepts automatically.
-* **Interactive UI:** Built with Gradio for a seamless web-based experience.
+StudyMitra turns recorded lectures into study material. Upload an audio/video file,
+generate a timestamped transcript, then summarize it, identify concepts, ask questions,
+or translate English content. Models run locally; no paid API key is required.
 
-## Tech Stack
-* **Python**
-* **Hugging Face Transformers**
-* **Gradio**
-* **Torch / PyTorch**
-* **FFmpeg**
+| Feature | Implementation |
+| --- | --- |
+| Transcription | faster-whisper / Whisper, language detection, VAD, word timestamps; automatic CPU/CUDA model selection |
+| Summaries | facebook/bart-large-cnn with token-based map/reduce for long lectures; Brief, Medium, Detailed |
+| Keywords and entities | KeyBERT, all-MiniLM-L6-v2, MMR diversity, spaCy English NER |
+| Lecture Q&A | TF-IDF retrieval and deepset/roberta-base-squad2 extractive answers |
+| Translation | Helsinki-NLP MarianMT, English to Hindi, French, German, Spanish, Arabic |
+| Evaluation | Reference-based WER/MER/WIL, ROUGE, and SQuAD-style QA F1/Exact Match |
 
-## How to Run
-1. Install dependencies: `pip install -r requirements.txt`
-2. Run the app: `python app.py`
+The UI uses Gradio. Python, PyTorch, Hugging Face Transformers, scikit-learn,
+and FFmpeg provide the processing pipeline. MoviePy 2 is the audio extraction fallback.
+
+## Run locally
+
+Use Python **3.10–3.12** in a virtual environment:
+
+```bash
+python -m venv .venv
+# Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.txt
+python app.py
+```
+
+Install the FFmpeg executable and put it on PATH for normalized audio extraction.
+On Ubuntu/Colab: `apt-get install ffmpeg`. `packages.txt` declares the system
+package for compatible hosting environments. MoviePy's bundled FFmpeg can handle
+supported inputs when the system executable is unavailable.
+
+Open the local URL printed by Gradio. To explicitly create a public link:
+`python app.py --share`. Colab's launch cell enables sharing.
+
+The first use of each feature downloads its model weights from Hugging Face;
+subsequent runs use the cache. CPU processing is supported but slower. CUDA needs
+a compatible PyTorch/CTranslate2 installation and NVIDIA libraries. Models remain
+cached in memory, so restart the process to reclaim memory if using many models
+on a small GPU. Automatic Whisper selection uses total GPU memory, not free memory.
+
+## Workflow and limits
+
+1. Upload MP4, MKV, WebM, MP3, WAV, FLAC, OGG, or M4A in **Transcribe**.
+2. Other tabs use your session's transcript, or accept pasted text.
+3. For **Evaluation**, supply human-verified references and predictions. Blank
+   sections show N/A. Scores cannot be inferred from word count or confidence;
+   different metrics are reported separately, without an invented overall accuracy.
+
+Whisper supports multilingual transcription. BART summaries, English keywords/NER,
+and the QA model are intended for English; translation accepts English source text.
+Model output may contain errors and should be checked against the recording.
+NER currently processes the first 100,000 characters; KeyBERT's document embedding
+is limited by its encoder's context window. QA retrieves a subset of the transcript.
+
+`app.py` launches the UI; `study_mitra.py` contains the shared pipeline and callbacks.
+The Colab notebook clones the repository and imports that same implementation,
+so local and Colab behavior stays aligned. An existing Colab clone is reused;
+update it explicitly with `git pull` when you want newer code.
+
+## Checks
+
+```bash
+python -m unittest discover -s tests -v
+python -m py_compile app.py study_mitra.py
+```
+
+The regression suite checks the real evaluation libraries and UI wiring, with
+model inference stubbed to avoid large downloads. Actual transcription and model
+quality require recordings, downloaded weights, and human references.
