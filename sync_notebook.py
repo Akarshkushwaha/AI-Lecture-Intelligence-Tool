@@ -24,6 +24,31 @@ EXPLANATIONS = {
     "10": "Define callbacks and build all six Gradio tabs. Each browser session has its own transcript state.",
 }
 
+SETUP_HELPERS = '''def run_setup(label, command):
+    """Forward child-process output into the notebook as each line arrives."""
+    print(f"\\n--- {label} ---", flush=True)
+    with subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, encoding="utf-8", errors="replace", bufsize=1,
+    ) as process:
+        try:
+            for line in process.stdout:
+                print(line, end="", flush=True)
+            returncode = process.wait()
+        except BaseException:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            raise
+    if returncode:
+        raise subprocess.CalledProcessError(returncode, command)
+    print(f"[OK] {label}", flush=True)
+
+'''
+
 
 def cell(kind, source):
     result = {"cell_type": kind, "metadata": {}, "source": source.splitlines(True)}
@@ -45,12 +70,18 @@ def build_notebook():
     setup = (
         "# CELL 1: DEPENDENCY INSTALLATION (Google Colab)\n"
         "import subprocess\nimport sys\n\n"
+        'print(f"StudyMitra setup | Python {sys.version.split()[0]}", flush=True)\n'
+        'if not (3, 10) <= sys.version_info[:2] <= (3, 12):\n'
+        '    raise RuntimeError("This dependency stack requires Python 3.10-3.12. '
+        'Select a Colab runtime version with Python 3.12, then rerun setup.")\n\n'
+        + SETUP_HELPERS +
         "# Matches requirements.txt; no repository clone or external Python source is needed.\n"
         f"requirements = {json.dumps(requirements, indent=4)}\n"
-        'subprocess.run([sys.executable, "-m", "pip", "install", *requirements], check=True)\n'
-        'subprocess.run(["apt-get", "update", "-qq"], check=True)\n'
-        'subprocess.run(["apt-get", "install", "-y", "ffmpeg"], check=True)\n'
-        'print("Setup complete. If libraries were already imported, restart the runtime before continuing from Cell 2.")\n'
+        'run_setup("1/3 Install Python packages (downloads may take several minutes)",\n'
+        '          [sys.executable, "-u", "-m", "pip", "install", "--progress-bar", "off", *requirements])\n'
+        'run_setup("2/3 Update system package index", ["apt-get", "update", "-qq"])\n'
+        'run_setup("3/3 Install FFmpeg", ["apt-get", "install", "-y", "ffmpeg"])\n'
+        'print("Setup complete. Restart the runtime before continuing from Cell 2 so replaced libraries are reloaded. Do not rerun Cell 1 after restarting.", flush=True)\n'
     )
     cells = [
         cell("markdown", "# StudyMitra.ai — AI Lecture Intelligence\n\n"
@@ -61,7 +92,9 @@ def build_notebook():
              "downloads its weights. Evaluation requires human-verified references.\n"),
         cell("markdown", "## Cell 1 — Dependency installation\n\n"
              "Install the compatible Python stack, spaCy English model, and system FFmpeg. "
-             "Skip this cell after a runtime restart if installation has already completed.\n"),
+             "Live installation logs appear below. After setup completes, restart the runtime "
+             "and continue from Cell 2; skip Cell 1 after that restart. "
+             "This stack requires Python 3.10–3.12.\n"),
         cell("code", setup),
     ]
     for i, match in enumerate(sections):

@@ -39,6 +39,13 @@ supported inputs when the system executable is unavailable.
 Open the local URL printed by Gradio. To explicitly create a public link:
 `python app.py --share`. Colab's launch cell enables sharing.
 
+Colab Cell 1 prints live installation logs and the detected Python version. It
+requires Python 3.10–3.12, just like the local app. If your runtime uses a newer
+Python, select an available Python 3.12 runtime through **Runtime > Change runtime
+type > Runtime version**. After installation completes, restart the runtime and
+continue from Cell 2 without reinstalling packages. Restarting reloads libraries
+that Colab may have imported before their versions were replaced.
+
 The first use of each feature downloads its model weights from Hugging Face;
 subsequent runs use the cache. CPU processing is supported but slower. CUDA needs
 a compatible PyTorch/CTranslate2 installation and NVIDIA libraries. Models remain
