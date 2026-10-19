@@ -20,5 +20,6 @@ protobuf
 moviepy>=2,<3
 spacy>=3.7.2,<3.8
 pydantic>=2.7,<2.11
-fastapi>=0.112,<0.116
+# Gradio 4.42 queue requests fail schema validation with FastAPI >=0.113.
+fastapi==0.112.2
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl

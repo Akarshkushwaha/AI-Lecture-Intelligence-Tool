@@ -46,6 +46,11 @@ type > Runtime version**. After installation completes, restart the runtime and
 continue from Cell 2 without reinstalling packages. Restarting reloads libraries
 that Colab may have imported before their versions were replaced.
 
+For the pinned Gradio 4.42 UI, FastAPI is pinned to 0.112.2. FastAPI 0.113+
+can fail request validation before a queued callback starts, even while the app
+page loads correctly. To repair an already-installed Colab environment, run
+`%pip install fastapi==0.112.2`, restart the session, and continue from Cell 2.
+
 The first use of each feature downloads its model weights from Hugging Face;
 subsequent runs use the cache. CPU processing is supported but slower. CUDA needs
 a compatible PyTorch/CTranslate2 installation and NVIDIA libraries. Models remain
@@ -81,6 +86,7 @@ python -m unittest discover -s tests -v
 python -m py_compile app.py study_mitra.py
 ```
 
-The regression suite checks the real evaluation libraries and UI wiring, with
-model inference stubbed to avoid large downloads. Actual transcription and model
+The regression suite checks the real evaluation libraries, UI wiring, and an HTTP
+file upload followed by queued transcription and session-specific summarization.
+Model inference is stubbed to avoid large downloads. Actual transcription and model
 quality require recordings, downloaded weights, and human references.
