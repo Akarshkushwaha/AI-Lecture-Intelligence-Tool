@@ -39,17 +39,30 @@ supported inputs when the system executable is unavailable.
 Open the local URL printed by Gradio. To explicitly create a public link:
 `python app.py --share`. Colab's launch cell enables sharing.
 
-Colab Cell 1 prints live installation logs and the detected Python version. It
-requires Python 3.10–3.12, just like the local app. If your runtime uses a newer
-Python, select an available Python 3.12 runtime through **Runtime > Change runtime
-type > Runtime version**. After installation completes, restart the runtime and
-continue from Cell 2 without reinstalling packages. Restarting reloads libraries
-that Colab may have imported before their versions were replaced.
+## Run in Google Colab
+
+Open the badge above, select a T4 GPU if available, and use **Run all**, or execute
+Cells 1–11 in order. Colab can keep its default Python 3.13 runtime. No restart,
+runtime downgrade, or skipped cells are needed.
+
+Cell 1 creates a private Python 3.12 virtual environment, installing a compatible
+interpreter automatically if necessary. It installs the complete Linux dependency
+lock from `requirements-colab.lock` and checks imports including NumPy's compiled
+extensions, pandas, spaCy, Gradio, and FastAPI in a separate process. Colab's own
+NumPy/pandas packages are never replaced or imported by the application cells.
+Repeated setup reuses the same healthy environment; changed locks or failed
+checks invalidate its ready marker.
+
+Cells 2–10 keep the full source visible and write separate source files using
+IPython's `%%writefile` magic. Rerunning a cell replaces its file. Cell 11 assembles
+and executes those files in the verified environment, streams the server logs,
+and prints the public Gradio URL. Keep Cell 11 running while using the app.
+The first setup downloads Python packages, including GPU libraries, so it may take
+several minutes; subsequent setup runs reuse them within the same Colab VM.
 
 For the pinned Gradio 4.42 UI, FastAPI is pinned to 0.112.2. FastAPI 0.113+
 can fail request validation before a queued callback starts, even while the app
-page loads correctly. To repair an already-installed Colab environment, run
-`%pip install fastapi==0.112.2`, restart the session, and continue from Cell 2.
+page loads correctly. This version is included in the isolated dependency lock.
 
 The first use of each feature downloads its model weights from Hugging Face;
 subsequent runs use the cache. CPU processing is supported but slower. CUDA needs
@@ -75,9 +88,16 @@ is limited by its encoder's context window. QA retrieves a subset of the transcr
 The Colab notebook contains the full implementation in separate, readable cells:
 setup, configuration, audio extraction, transcription, summaries, keywords, Q&A,
 translation, evaluation, Gradio compatibility, UI, and launch. It can run without
-cloning the repository or importing `study_mitra.py`.
+cloning the repository. Cell 11 assembles its visible source into `study_mitra.py`
+inside the private runtime directory.
 After editing the Python implementation or requirements, run `python sync_notebook.py`
-to update the notebook's code cells and embedded installation requirements.
+to update the notebook's code cells and embedded runtime setup. After changing
+`requirements.txt`, regenerate the Linux lock before the notebook:
+
+```bash
+uv pip compile requirements.txt --python-version 3.12 --python-platform x86_64-manylinux_2_28 --output-file requirements-colab.lock --no-annotate
+python sync_notebook.py
+```
 
 ## Checks
 
@@ -90,3 +110,8 @@ The regression suite checks the real evaluation libraries, UI wiring, and an HTT
 file upload followed by queued transcription and session-specific summarization.
 Model inference is stubbed to avoid large downloads. Actual transcription and model
 quality require recordings, downloaded weights, and human references.
+
+The GitHub validation workflow additionally starts with Python 3.13 and NumPy 2
+loaded, executes the notebook cells in order, repeats Cell 1, checks that the host
+NumPy remains unchanged, and sends a real queued request to the isolated server.
+It then runs the application regression suite in the private Python 3.12 runtime.

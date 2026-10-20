@@ -32,6 +32,7 @@ class QueueIntegrationTests(unittest.TestCase):
                 audio.setframerate(16000)
                 audio.writeframes(b"\0\0" * 16000)
             app = sm.build_app().queue(max_size=5, default_concurrency_limit=1)
+            clients = []
             try:
                 _, url, _ = app.launch(share=False, prevent_thread_lock=True,
                                        quiet=True, show_error=True)
@@ -39,6 +40,7 @@ class QueueIntegrationTests(unittest.TestCase):
                     sm, "summarize_text", side_effect=summarize
                 ):
                     client = Client(url, verbose=False)
+                    clients.append(client)
                     transcript = client.submit(handle_file(str(source)), "Auto",
                                                "VAD Enabled", "Auto-detect",
                                                api_name="/run_transcribe").result(timeout=30)
@@ -46,9 +48,12 @@ class QueueIntegrationTests(unittest.TestCase):
                     summary = client.submit("", "Brief", api_name="/run_summarize").result(timeout=30)
                     self.assertEqual(summary[0], result["transcript"])
                     other = Client(url, verbose=False)
+                    clients.append(other)
                     empty = other.submit("", "Brief", api_name="/run_summarize").result(timeout=30)
                     self.assertIn("No transcript", empty[0])
             finally:
+                for client in clients:
+                    client.close()
                 app.close()
 
 

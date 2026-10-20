@@ -7,7 +7,6 @@ import json
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent
 NOTEBOOK = ROOT / "lecture-intelligence-tool.ipynb"
 SECTION = re.compile(r"(?m)^# =+\n# CELL ([\d.]+): ([^\n]+)\n")
@@ -24,30 +23,9 @@ EXPLANATIONS = {
     "10": "Define callbacks and build all six Gradio tabs. Each browser session has its own transcript state.",
 }
 
-SETUP_HELPERS = '''def run_setup(label, command):
-    """Forward child-process output into the notebook as each line arrives."""
-    print(f"\\n--- {label} ---", flush=True)
-    with subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, encoding="utf-8", errors="replace", bufsize=1,
-    ) as process:
-        try:
-            for line in process.stdout:
-                print(line, end="", flush=True)
-            returncode = process.wait()
-        except BaseException:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
-            raise
-    if returncode:
-        raise subprocess.CalledProcessError(returncode, command)
-    print(f"[OK] {label}", flush=True)
-
-'''
+# Embedded, not imported by Colab; only standard-library setup code runs in its kernel.
+RUNTIME_ROOT = "/content/studymitra-runtime"
+SETUP_HELPERS = (ROOT / "colab_runtime.py").read_text(encoding="utf-8")
 
 
 def cell(kind, source):
@@ -57,70 +35,102 @@ def cell(kind, source):
     return result
 
 
-def build_notebook():
+def build_notebook(runtime_root=RUNTIME_ROOT):
     source = (ROOT / "study_mitra.py").read_text(encoding="utf-8")
     sections = list(SECTION.finditer(source))
     if len(sections) != len(EXPLANATIONS):
-        raise ValueError("Application section headings changed; update notebook sections")
-    requirements = [
-        line.strip()
-        for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.startswith("#")
-    ]
+        raise ValueError(
+            "Application section headings changed; update notebook sections"
+        )
+    locked = (ROOT / "requirements-colab.lock").read_text(encoding="utf-8")
     setup = (
-        "# CELL 1: DEPENDENCY INSTALLATION (Google Colab)\n"
-        "import subprocess\nimport sys\n\n"
-        'print(f"StudyMitra setup | Python {sys.version.split()[0]}", flush=True)\n'
-        'if not (3, 10) <= sys.version_info[:2] <= (3, 12):\n'
-        '    raise RuntimeError("This dependency stack requires Python 3.10-3.12. '
-        'Select a Colab runtime version with Python 3.12, then rerun setup.")\n\n'
-        + SETUP_HELPERS +
-        "# Matches requirements.txt; no repository clone or external Python source is needed.\n"
-        f"requirements = {json.dumps(requirements, indent=4)}\n"
-        'run_setup("1/3 Install Python packages (downloads may take several minutes)",\n'
-        '          [sys.executable, "-u", "-m", "pip", "install", "--progress-bar", "off", *requirements])\n'
-        'run_setup("2/3 Update system package index", ["apt-get", "update", "-qq"])\n'
-        'run_setup("3/3 Install FFmpeg", ["apt-get", "install", "-y", "ffmpeg"])\n'
-        'print("Setup complete. Restart the runtime before continuing from Cell 2 so replaced libraries are reloaded. Do not rerun Cell 1 after restarting.", flush=True)\n'
+        "# CELL 1: ISOLATED DEPENDENCY SETUP (safe to rerun)\n"
+        + SETUP_HELPERS
+        + f"\nPROJECT_ROOT = Path({runtime_root!r})\n"
+        + f"LOCKED_REQUIREMENTS = {locked!r}\n"
+        + 'print(f"Notebook Python {sys.version.split()[0]}; application uses isolated Python 3.12.", flush=True)\n'
+        + "APP_PYTHON = ensure_runtime(PROJECT_ROOT, LOCKED_REQUIREMENTS)\n"
+        + 'if not shutil.which("ffmpeg"):\n'
+        + '    if hasattr(os, "geteuid") and os.geteuid() == 0:\n'
+        + '        run_setup("Update system package index", ["apt-get", "update", "-qq"])\n'
+        + '        run_setup("Install FFmpeg", ["apt-get", "install", "-y", "ffmpeg"])\n'
+        + "    else:\n"
+        + '        print("System FFmpeg unavailable; audio extraction will use MoviePy’s bundled executable.", flush=True)\n'
+        + 'print("Setup complete. Continue with Cell 2. No restart or skipped cells needed.", flush=True)\n'
     )
     cells = [
-        cell("markdown", "# StudyMitra.ai — AI Lecture Intelligence\n\n"
-             "This notebook contains the **full implementation**, split into readable cells. "
-             "Run the cells in order: setup, configuration, audio extraction, transcription, "
-             "summarization, keywords, Q&A, translation, evaluation, UI, then launch.\n\n"
-             "In Colab, select a GPU runtime for faster processing. First use of each model "
-             "downloads its weights. Evaluation requires human-verified references.\n"),
-        cell("markdown", "## Cell 1 — Dependency installation\n\n"
-             "Install the compatible Python stack, spaCy English model, and system FFmpeg. "
-             "Live installation logs appear below. After setup completes, restart the runtime "
-             "and continue from Cell 2; skip Cell 1 after that restart. "
-             "This stack requires Python 3.10–3.12.\n"),
+        cell(
+            "markdown",
+            "# StudyMitra.ai — AI Lecture Intelligence\n\n"
+            "This notebook contains the **full implementation**, split into readable cells. "
+            "Choose a T4 GPU if available, then use **Run all** or run Cells 1–11 in order. "
+            "The notebook can use Colab’s default Python version.\n\n"
+            "Cell 1 creates an isolated Python 3.12 environment. Cells 2–10 save the full "
+            "source into that environment; Cell 11 executes it and starts the UI. "
+            "No kernel restart, runtime downgrade, or skipped setup cell is required. "
+            "First use downloads dependencies and model weights; evaluation requires reference data.\n",
+        ),
+        cell(
+            "markdown",
+            "## Cell 1 — Isolated dependency setup\n\n"
+            "Install the locked app stack separately from Colab’s packages, then test its imports. "
+            "Progress and errors appear below. It is safe to rerun this cell: a healthy matching "
+            "environment is reused. Continue directly to Cell 2 when setup completes.\n",
+        ),
         cell("code", setup),
     ]
+    names = []
     for i, match in enumerate(sections):
         number, title = match.groups()
         end = sections[i + 1].start() if i + 1 < len(sections) else len(source)
-        cells.extend([
-            cell("markdown", f"## Cell {number} — {title.title()}\n\n{EXPLANATIONS[number]}\n"),
-            cell("code", source[match.start():end]),
-        ])
-    cells.extend([
-        cell("markdown", "## Cell 11 — Launch StudyMitra\n\n"
-             "Build the UI from the functions above and create a public Gradio URL. "
-             "The notebook must remain running while the URL is in use.\n"),
-        cell("code", '# CELL 11: LAUNCH GRADIO\n'
-             'gr.close_all()\n'
-             'demo = build_app()\n'
-             'demo.queue(max_size=5, default_concurrency_limit=1).launch(share=True)\n'),
-    ])
+        name = f"{i + 2:02d}.py"
+        names.append(name)
+        cells.extend(
+            [
+                cell(
+                    "markdown",
+                    f"## Cell {number} — {title.title()}\n\n{EXPLANATIONS[number]}\n\n"
+                    "This cell writes the full code below to the isolated app. It executes when Cell 11 launches.\n",
+                ),
+                cell(
+                    "code",
+                    f"%%writefile {runtime_root}/cells/{name}\n"
+                    + source[match.start() : end],
+                ),
+            ]
+        )
+    cells.extend(
+        [
+            cell(
+                "markdown",
+                "## Cell 11 — Launch StudyMitra\n\n"
+                "Execute the code from Cells 2–10 in the verified app environment. "
+                "Open the public Gradio URL printed below. This cell stays running to serve the app "
+                "and show its logs; stop it with the square button when finished.\n",
+            ),
+            cell(
+                "code",
+                "# CELL 11: LAUNCH THE ISOLATED APPLICATION\n"
+                + f"launch_notebook(PROJECT_ROOT, {names!r}, share=True)\n",
+            ),
+        ]
+    )
     return {
         "nbformat": 4,
         "nbformat_minor": 5,
         "metadata": {
-            "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
+            },
             "language_info": {"name": "python"},
-            "colab": {"name": "lecture-intelligence-tool.ipynb", "provenance": [],
-                      "gpuType": "T4", "toc_visible": True},
+            "colab": {
+                "name": "lecture-intelligence-tool.ipynb",
+                "provenance": [],
+                "gpuType": "T4",
+                "toc_visible": True,
+            },
             "accelerator": "GPU",
         },
         "cells": [dict(c, id=f"study-mitra-{i:02d}") for i, c in enumerate(cells)],
@@ -129,5 +139,7 @@ def build_notebook():
 
 if __name__ == "__main__":
     notebook = build_notebook()
-    NOTEBOOK.write_text(json.dumps(notebook, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    NOTEBOOK.write_text(
+        json.dumps(notebook, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
+    )
     print(f"Wrote {len(notebook['cells'])} cells including the full implementation.")

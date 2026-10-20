@@ -7,19 +7,21 @@ tokenizers>=0.19,<0.20
 huggingface-hub>=0.23.2,<1.0
 sentence-transformers==2.7.0
 keybert==0.8.4
-torch>=2.2,<3
+# CUDA 12 / cuDNN 9 pair, supported by Colab T4; avoid drifting to CUDA 13 wheels.
+torch==2.5.1
+ctranslate2==4.6.0
 sentencepiece
 sacremoses
 rouge-score==0.1.2
 jiwer==3.0.3
 nltk>=3.8,<4
 scikit-learn>=1.3,<2
-pandas>=2,<3
-numpy>=1.26,<2
+pandas==2.2.3
+numpy==1.26.4
 protobuf
 moviepy>=2,<3
 spacy>=3.7.2,<3.8
-pydantic>=2.7,<2.11
+pydantic==2.10.6
 # Gradio 4.42 queue requests fail schema validation with FastAPI >=0.113.
 fastapi==0.112.2
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl

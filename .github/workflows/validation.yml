@@ -1,0 +1,29 @@
+name: Validate StudyMitra
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-colab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install notebook host tools
+        run: python -m pip install ipython 'numpy>=2,<3'
+      - name: Install system FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Run every notebook cell and repeat setup with host NumPy 2 loaded
+        run: python tests/validate_colab.py --root .cache/colab-validation
+      - name: Run application and request integration tests in isolated Python 3.12
+        run: .cache/colab-validation/venv/bin/python -m unittest discover -s tests -v
+      - name: Test real speech recognition on the upstream Whisper audio fixture
+        env:
+          STUDYMITRA_MODEL_SMOKE: '1'
+          HF_HOME: .cache/model-smoke
+        run: .cache/colab-validation/venv/bin/python -m unittest discover -s tests -p test_model_smoke.py -v
