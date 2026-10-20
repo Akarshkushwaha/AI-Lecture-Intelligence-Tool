@@ -50,6 +50,9 @@ interpreter automatically if necessary. It installs the complete Linux dependenc
 lock from `requirements-colab.lock` and checks imports including NumPy's compiled
 extensions, pandas, spaCy, Gradio, and FastAPI in a separate process. Colab's own
 NumPy/pandas packages are never replaced or imported by the application cells.
+The server uses Matplotlib's non-interactive `Agg` backend and its own plotting
+configuration directory, so Colab's `matplotlib_inline` setting cannot leak into
+queued callbacks. The setup health check also renders a small figure.
 Repeated setup reuses the same healthy environment; changed locks or failed
 checks invalidate its ready marker.
 

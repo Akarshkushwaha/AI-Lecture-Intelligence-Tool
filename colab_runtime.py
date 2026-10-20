@@ -18,6 +18,11 @@ import numpy, numpy.random, pandas, spacy, gradio, fastapi, pydantic, torch, ctr
 from faster_whisper import WhisperModel
 from transformers import BartForConditionalGeneration, MarianMTModel, pipeline
 from keybert import KeyBERT
+import matplotlib.pyplot as plt
+assert plt.get_backend().lower() == "agg", plt.get_backend()
+figure = plt.figure()
+figure.canvas.draw()
+plt.close(figure)
 assert sys.version_info[:2] == (3, 12), sys.version
 assert numpy.__version__ == "1.26.4", numpy.__version__
 assert pandas.__version__ == "2.2.3", pandas.__version__
@@ -86,6 +91,9 @@ def runtime_environment(root):
         GRADIO_ANALYTICS_ENABLED="False",
         UV_CACHE_DIR=str(root / "cache" / "uv"),
         UV_PYTHON_INSTALL_DIR=str(root / "python"),
+        # Colab exports a notebook-only backend. The app is a separate server.
+        MPLBACKEND="Agg",
+        MPLCONFIGDIR=str(root / "matplotlib"),
     )
     # CTranslate2 loads CUDA libraries dynamically; use this environment's copies.
     libraries = sorted(root.glob("venv/lib/python*/site-packages/nvidia/*/lib"))

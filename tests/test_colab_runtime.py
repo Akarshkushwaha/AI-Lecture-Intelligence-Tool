@@ -67,12 +67,20 @@ class RuntimeTests(unittest.TestCase):
             library.mkdir(parents=True)
             with patch.dict(
                 os.environ,
-                {"PYTHONPATH": "host", "PYTHONHOME": "host", "VIRTUAL_ENV": "host"},
+                {
+                    "PYTHONPATH": "host",
+                    "PYTHONHOME": "host",
+                    "VIRTUAL_ENV": "host",
+                    "MPLBACKEND": "module://matplotlib_inline.backend_inline",
+                    "MPLCONFIGDIR": "/host/matplotlib",
+                },
             ):
                 env = runtime_environment(root)
             for key in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV"):
                 self.assertNotIn(key, env)
             self.assertEqual(env["PYTHONNOUSERSITE"], "1")
+            self.assertEqual(env["MPLBACKEND"], "Agg")
+            self.assertEqual(env["MPLCONFIGDIR"], str(root / "matplotlib"))
             self.assertIn(str(library), env["LD_LIBRARY_PATH"])
 
     def test_rerunning_source_cell_overwrites_instead_of_appending(self):

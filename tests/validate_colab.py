@@ -24,6 +24,8 @@ from sync_notebook import build_notebook
 def validate(root):
     import numpy as host_numpy
 
+    # Mirror the notebook-specific setting exported by Google Colab.
+    os.environ["MPLBACKEND"] = "module://matplotlib_inline.backend_inline"
     original_numpy = host_numpy.__version__
     root = Path(root).resolve()
     notebook = build_notebook(root.as_posix())
@@ -42,6 +44,7 @@ def validate(root):
         raise RuntimeError("Rerunning setup failed")
     assert sys.modules["numpy"] is host_numpy
     assert host_numpy.__version__ == original_numpy
+    assert os.environ["MPLBACKEND"] == "module://matplotlib_inline.backend_inline"
     print(
         "Host NumPy remained loaded and unchanged after setup, source cells, and setup rerun.",
         flush=True,
